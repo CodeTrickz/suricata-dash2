@@ -1,0 +1,22 @@
+[499811 - Suricata-Main] 2025-11-27 18:06:16 Notice: suricata: This is Suricata version 7.0.11 RELEASE running in SYSTEM mode
+[499811 - Suricata-Main] 2025-11-27 18:06:16 Info: cpu: CPUs/cores online: 2
+[499811 - Suricata-Main] 2025-11-27 18:06:16 Info: netmap: Netmap: Setting IPS mode
+[499811 - Suricata-Main] 2025-11-27 18:06:16 Info: app-layer-htp-mem: HTTP memcap: 67108864
+[446660 - Suricata-Main] 2025-11-27 18:06:17 Info: logopenfile: fast output device (regular) initialized: alerts.log
+[446660 - Suricata-Main] 2025-11-27 18:06:17 Info: logopenfile: http-log output device (regular) initialized: http.log
+[446660 - Suricata-Main] 2025-11-27 18:06:17 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[446660 - Suricata-Main] 2025-11-27 18:06:17 Info: output-json-email-common: Going to log the md5 sum of email subject
+[446660 - Suricata-Main] 2025-11-27 18:06:29 Error: detect-tls-ja3-hash: ja3 support is not enabled
+[446660 - Suricata-Main] 2025-11-27 18:06:29 Error: detect: error parsing signature "alert tls $HOME_NET any -> $EXTERNAL_NET any (msg:"ET JA3 Hash - Metasploit http scanner (tested: 4.11.5 Kali)"; ja3_hash; content:"16f17c896273d1d098314a02e87dd4cb"; reference:url,github.com/trisulnsm/trisul-scripts/blob/master/lua/frontend_scripts/reassembly/ja3/prints/ja3fingerprint.json; classtype:unknown; sid:2028301; rev:2; metadata:created_at 2019_09_10, confidence Low, signature_severity Major, tag Description_Generated_By_Proofpoint_Nexus, updated_at 2019_10_29;)" from file /usr/local/etc/suricata/suricata_45182_em1/rules/suricata.rules at line 15372
+[446660 - Suricata-Main] 2025-11-27 18:06:29 Error: detect-tls-ja3s-hash: ja3(s) support is not enabled
+[446660 - Suricata-Main] 2025-11-27 18:06:29 Error: detect: error parsing signature "alert tls $EXTERNAL_NET any -> $HOME_NET any (msg:"ET JA3 Hash - Possible RustyBuer Server Response"; flowbits:isset,ET.rustybuer; ja3s.hash; content:"f6dfdd25d1522e4e1c7cd09bd37ce619"; reference:md5,ea98a9d6ca6f5b2a0820303a1d327593; classtype:bad-unknown; sid:2032960; rev:1; metadata:attack_target Client_Endpoint, created_at 2021_05_13, deployment Perimeter, malware_family RustyBuer, performance_impact Low, confidence Low, signature_severity Major, tag Description_Generated_By_Proofpoint_Nexus, updated_at 2021_05_13;)" from file /usr/local/etc/suricata/suricata_45182_em1/rules/suricata.rules at line 15459
+[446660 - Suricata-Main] 2025-11-27 18:06:53 Info: detect: 1 rule files processed. 45710 rules successfully loaded, 106 rules failed, 0
+[446660 - Suricata-Main] 2025-11-27 18:06:53 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[446660 - Suricata-Main] 2025-11-27 18:06:53 Info: detect: 45713 signatures processed. 959 are IP-only rules, 4410 are inspecting packet payload, 40115 inspect application layer, 109 are decoder event only
+[446660 - Suricata-Main] 2025-11-27 18:07:49 Info: runmodes: Using 2 live device(s).
+[899759 - RX#01-em1] 2025-11-27 18:07:54 Info: netmap: netmap:em1/R: em1 opened [fd: 7]
+[899759 - RX#01-em1] 2025-11-27 18:07:55 Info: netmap: netmap:em1^/T: em1^ opened [fd: 8]
+[899816 - RX#01-em1^] 2025-11-27 18:07:56 Info: netmap: netmap:em1^/R: em1^ opened [fd: 9]
+[899816 - RX#01-em1^] 2025-11-27 18:07:58 Info: netmap: netmap:em1/T: em1 opened [fd: 10]
+[446660 - Suricata-Main] 2025-11-27 18:07:58 Info: unix-manager: unix socket '/var/run/suricata-ctrl-socket-45182'
+[446660 - Suricata-Main] 2025-11-27 18:07:58 Notice: threads: Threads created -> RX: 2 W: 2 FM: 1 FR: 1   Engine started.

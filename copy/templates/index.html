@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Suricata Security Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #040b18;
+        --panel: #14223a;
+        --panel-light: #1b2f4f;
+        --text: #fef9ff;
+        --muted: #d6dfff;
+        --accent: #7fd8ff;
+        --accent-soft: #f3f7ff;
+        --heading: #fff4d6;
+      }
+      body {
+        background-color: var(--bg);
+        color: var(--text);
+      }
+      h1, h2, h3, h4, h5, h6 {
+        color: var(--heading);
+      }
+      .card {
+        background: linear-gradient(135deg, var(--panel), var(--panel-light));
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 0.9rem;
+        box-shadow: 0 10px 30px rgba(3, 7, 18, 0.4);
+      }
+      .card p,
+      .card h5 {
+        color: var(--text);
+      }
+      .table {
+        color: var(--text);
+      }
+      .table thead {
+        color: var(--accent-soft);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+      .table tbody tr {
+        background-color: rgba(255, 255, 255, 0.03);
+      }
+      .table tbody tr:hover {
+        background: rgba(79, 128, 255, 0.08);
+      }
+      .badge {
+        font-size: 0.85rem;
+      }
+      a,
+      a:hover {
+        color: var(--accent);
+      }
+      .text-secondary {
+        color: var(--muted) !important;
+      }
+      .log-link {
+        text-decoration: none;
+      }
+      .legend-dot {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 6px;
+      }
+      .legend-critical { background-color: #ff4d4f; }
+      .legend-high { background-color: #f8c046; }
+      .legend-medium { background-color: #3dd6ff; }
+      .legend-low { background-color: #98a2b3; }
+      .filter-pill {
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.2);
+        padding: 0.4rem 1rem;
+        color: var(--muted);
+        background: transparent;
+        transition: all 0.2s ease;
+      }
+      .filter-pill.active {
+        color: #111827;
+        border-color: transparent;
+        background: #f8fafc;
+      }
+      .filter-pill:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+    </style>
+  </head>
+  <body data-current-page="{{ pagination.page }}" data-total-pages="{{ pagination.total_pages }}" data-page-size="{{ pagination.per_page }}">
+    <div class="container py-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+        <div>
+          <h1 class="h3 mb-1">Suricata Security Dashboard</h1>
+          <p class="text-secondary mb-0">
+            Eenvoudige uitleg voor niet-experts: rood = dringend, oranje = opletten, blauw/grijs = informatief.
+          </p>
+        </div>
+        <a class="btn btn-outline-light" href="/health">Health check</a>
+      </div>
+
+      <div class="alert alert-secondary text-dark bg-opacity-75 border-0 mb-4" role="alert">
+        <strong>Hoe lees je dit?</strong> Elke regel komt uit Suricata (ons netwerk-alarm). De kleur van een badge toont het risico:
+        rood staat voor vermoedelijke aanvallen, oranje voor mogelijk gevaar, blauw voor technische waarschuwingen en grijs voor informatie.
+        Gebruik de filters hieronder om alleen de relevante meldingen te tonen.
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-md-3">
+          <div class="card p-3 shadow-sm">
+            <p class="text-secondary mb-1">Totaal alerts</p>
+            <h2 id="stat-total">{{ stats.total }}</h2>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card p-3 shadow-sm">
+            <p class="text-secondary mb-1">Critical (direct reageren)</p>
+            <h2 class="text-danger" id="stat-critical">{{ stats.critical }}</h2>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card p-3 shadow-sm">
+            <p class="text-secondary mb-1">High (snel controleren)</p>
+            <h2 class="text-warning" id="stat-high">{{ stats.high }}</h2>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card p-3 shadow-sm">
+            <p class="text-secondary mb-1">Medium/Low (technische info)</p>
+            <h2 class="text-info" id="stat-mediumlow">{{ stats.medium + stats.low }}</h2>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <div class="card p-3 h-100">
+            <h5>Top signatures</h5>
+            <ul class="list-group list-group-flush" id="top-signatures">
+              {% for name, count in stats.top_signatures %}
+              <li class="list-group-item bg-transparent text-light d-flex justify-content-between">
+                <span>{{ name }}</span>
+                <span class="badge bg-primary">{{ count }}</span>
+              </li>
+              {% else %}
+              <li class="list-group-item bg-transparent text-light">Geen data</li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card p-3 h-100">
+            <h5>Top classificaties</h5>
+            <ul class="list-group list-group-flush" id="top-classifications">
+              {% for name, count in stats.top_classifications %}
+              <li class="list-group-item bg-transparent text-light d-flex justify-content-between">
+                <span>{{ name }}</span>
+                <span class="badge bg-success">{{ count }}</span>
+              </li>
+              {% else %}
+              <li class="list-group-item bg-transparent text-light">Geen data</li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card p-3 h-100">
+            <h5>Top bron-IP's</h5>
+            <ul class="list-group list-group-flush" id="top-sources">
+              {% for name, count in stats.top_sources %}
+              <li class="list-group-item bg-transparent text-light d-flex justify-content-between">
+                <span>{{ name }}</span>
+                <span class="badge bg-secondary">{{ count }}</span>
+              </li>
+              {% else %}
+              <li class="list-group-item bg-transparent text-light">Geen data</li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <div class="card p-3 h-100">
+            <h5>Top doel-IP's</h5>
+            <ul class="list-group list-group-flush" id="top-destinations">
+              {% for name, count in stats.top_destinations %}
+              <li class="list-group-item bg-transparent text-light d-flex justify-content-between">
+                <span>{{ name }}</span>
+                <span class="badge bg-info text-dark">{{ count }}</span>
+              </li>
+              {% else %}
+              <li class="list-group-item bg-transparent text-light">Geen data</li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card p-3 h-100">
+            <h5>Top directories</h5>
+            <ul class="list-group list-group-flush" id="top-directories">
+              {% for name, count in stats.top_directories %}
+              <li class="list-group-item bg-transparent text-light d-flex justify-content-between">
+                <span>{{ name }}</span>
+                <span class="badge bg-light text-dark">{{ count }}</span>
+              </li>
+              {% else %}
+              <li class="list-group-item bg-transparent text-light">Geen data</li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card p-3 h-100">
+            <h5>Top services</h5>
+            <ul class="list-group list-group-flush" id="top-services">
+              {% for name, count in stats.top_services %}
+              <li class="list-group-item bg-transparent text-light d-flex justify-content-between">
+                <span>{{ name }}</span>
+                <span class="badge bg-dark">{{ count }}</span>
+              </li>
+              {% else %}
+              <li class="list-group-item bg-transparent text-light">Geen data</li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="card p-3 mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
+          <h4 class="mb-0">Laatste alerts</h4>
+          <div class="d-flex gap-3 small text-secondary">
+            <span><span class="legend-dot legend-critical"></span>Vermoedelijke aanval</span>
+            <span><span class="legend-dot legend-high"></span>Mogelijk risico</span>
+            <span><span class="legend-dot legend-medium"></span>Protocol waarschuwing</span>
+            <span><span class="legend-dot legend-low"></span>Info / achtergrond</span>
+          </div>
+        </div>
+        <div class="d-flex flex-wrap gap-3 justify-content-between align-items-center mb-3">
+          <small class="text-secondary mb-0" id="alerts-range">
+            {% if pagination.total_items %}
+              Toont {{ pagination.range_start_display }}-{{ pagination.range_end_display }} van {{ pagination.total_items }} alerts ({{ pagination.per_page }} per pagina)
+            {% else %}
+              Geen alerts gevonden
+            {% endif %}
+          </small>
+          <div class="btn-group" role="group" aria-label="Filter op risico">
+            <button class="filter-pill active" data-filter="all">Alles</button>
+            <button class="filter-pill" data-filter="Critical">Critical</button>
+            <button class="filter-pill" data-filter="High">High</button>
+            <button class="filter-pill" data-filter="Medium">Medium</button>
+            <button class="filter-pill" data-filter="Low">Low</button>
+          </div>
+        </div>
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-3" id="pagination-info">
+          <span class="text-secondary small" id="pagination-page-label">
+            Pagina {{ pagination.page }} / {{ pagination.total_pages }}
+          </span>
+          <nav aria-label="Navigatie alerts" id="pagination-nav">
+            <ul class="pagination pagination-sm mb-0" id="pagination-list">
+              <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                <a class="page-link pagination-link" href="{{ url_for('dashboard', page=pagination.prev_page) }}" data-page="{{ pagination.prev_page }}" aria-label="Vorige pagina">Vorige</a>
+              </li>
+              {% for number in pagination.page_numbers %}
+                {% if number %}
+                  <li class="page-item {% if number == pagination.page %}active{% endif %}">
+                    <a class="page-link pagination-link" href="{{ url_for('dashboard', page=number) }}" data-page="{{ number }}">{{ number }}</a>
+                  </li>
+                {% else %}
+                  <li class="page-item disabled"><span class="page-link">…</span></li>
+                {% endif %}
+              {% endfor %}
+              <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                <a class="page-link pagination-link" href="{{ url_for('dashboard', page=pagination.next_page) }}" data-page="{{ pagination.next_page }}" aria-label="Volgende pagina">Volgende</a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-dark table-striped align-middle">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Risico</th>
+                <th>Prioriteit</th>
+                <th>Signature</th>
+                <th>Classificatie</th>
+                <th>Bron IP</th>
+                <th>Doel IP</th>
+                <th>Protocol</th>
+                <th>Service</th>
+                <th>Directory</th>
+              </tr>
+            </thead>
+            <tbody id="alerts-body">
+              {% for alert in alerts %}
+              <tr data-risk="{{ alert.risk }}">
+                <td>{{ alert.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+                <td>
+                  <span class="badge {% if alert.risk == 'Critical' %}bg-danger{% elif alert.risk == 'High' %}bg-warning text-dark{% elif alert.risk == 'Medium' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+                    {{ alert.risk }}
+                  </span>
+                </td>
+                <td>{{ alert.priority }}</td>
+                <td>{{ alert.message }}</td>
+                <td>{{ alert.classification }}</td>
+                <td>{{ alert.src_ip if alert.src_ip else alert.src }}</td>
+                <td>{{ alert.dst_ip if alert.dst_ip else alert.dst }}</td>
+                <td>{{ alert.protocol }}</td>
+                <td>{{ alert.service if alert.service else alert.protocol }}</td>
+                <td><small class="text-secondary">{{ alert.source_dir if alert.source_dir else 'N/A' }}</small></td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="10" class="text-center text-secondary">Geen alerts gevonden</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card p-3 mb-4">
+        <h4 class="mb-3">Wat vertellen deze secties?</h4>
+        <ul class="text-secondary mb-0">
+          <li><strong>Top signatures:</strong> welke aanvalspatronen het vaakst voorkomen.</li>
+          <li><strong>Top classificaties:</strong> categorieën zoals “Web Application Attack”.</li>
+          <li><strong>Top bron-IP's:</strong> welke adressen de meeste meldingen veroorzaken.</li>
+          <li><strong>Top doel-IP's:</strong> welke systemen het vaakst geraakt worden.</li>
+          <li><strong>Top services:</strong> zichtbaar welke applicaties (HTTP, SSH, ... ) geraakt worden.</li>
+          <li><strong>Top directories:</strong> welke sensor of interface het meeste lawaai maakt.</li>
+        </ul>
+      </div>
+
+      <div class="card p-3 mb-5">
+        <h4 class="mb-3">Beschikbare logbestanden</h4>
+        <div class="table-responsive">
+          <table class="table table-dark table-striped align-middle">
+            <thead>
+              <tr>
+                <th>Directory</th>
+                <th>Bestand</th>
+                <th>Laatste wijziging</th>
+                <th>Grootte</th>
+                <th>Acties</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for file in files %}
+              <tr>
+                <td><small class="text-secondary">{{ file.dirname }}</small></td>
+                <td><a class="log-link" href="/logs/{{ file.name }}">{{ file.filename }}</a></td>
+                <td>{{ file.updated.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+                <td>{{ (file.size / (1024*1024)) | round(2) }} MB</td>
+                <td>
+                  <a class="btn btn-sm btn-outline-light" href="/logs/{{ file.name }}">Bekijken</a>
+                  <a class="btn btn-sm btn-outline-secondary" href="/logs/{{ file.name }}/download">Download</a>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="5" class="text-center text-secondary">Geen logbestanden gevonden</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p class="text-secondary text-center small">
+        Data bron: {{ log_dir }}<br>
+        {% if suricata_dirs %}
+        Actieve directories: {{ suricata_dirs|join(', ') }}
+        {% endif %}
+      </p>
+    </div>
+    <script>
+      const filterButtons = document.querySelectorAll(".filter-pill");
+      const alertsBody = document.getElementById("alerts-body");
+      const alertsRange = document.getElementById("alerts-range");
+      const paginationPageLabel = document.getElementById("pagination-page-label");
+      const paginationList = document.getElementById("pagination-list");
+      let currentFilter = "all";
+
+      filterButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          currentFilter = btn.dataset.filter;
+          filterButtons.forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+
+          applyFilter();
+        });
+      });
+
+      function applyFilter() {
+        const rows = alertsBody.querySelectorAll("tr[data-risk]");
+        rows.forEach(row => {
+          const risk = row.dataset.risk;
+          const shouldShow = currentFilter === "all" || risk === currentFilter;
+          row.style.display = shouldShow ? "" : "none";
+        });
+      }
+
+      function createBadge(risk) {
+        switch (risk) {
+          case "Critical":
+            return '<span class="badge bg-danger">Critical</span>';
+          case "High":
+            return '<span class="badge bg-warning text-dark">High</span>';
+          case "Medium":
+            return '<span class="badge bg-info text-dark">Medium</span>';
+          default:
+            return '<span class="badge bg-secondary">Low</span>';
+        }
+      }
+
+      function updateTopList(elementId, items, colorClass) {
+        const container = document.getElementById(elementId);
+        if (!container) return;
+
+        if (!items.length) {
+          container.innerHTML = '<li class="list-group-item bg-transparent text-light">Geen data</li>';
+          return;
+        }
+
+        container.innerHTML = items.map(
+          ([name, count]) => `
+            <li class="list-group-item bg-transparent text-light d-flex justify-content-between">
+              <span>${name}</span>
+              <span class="badge ${colorClass}">${count}</span>
+            </li>`
+        ).join("");
+      }
+
+      function currentPage() {
+        return Number(document.body.dataset.currentPage || 1);
+      }
+
+      function updateRangeSummary(pagination) {
+        if (alertsRange) {
+          if (!pagination.total_items) {
+            alertsRange.textContent = "Geen alerts gevonden";
+          } else {
+            alertsRange.textContent = `Toont ${pagination.range_start_display}-${pagination.range_end_display} van ${pagination.total_items} alerts (${pagination.per_page} per pagina)`;
+          }
+        }
+        if (paginationPageLabel) {
+          paginationPageLabel.textContent = `Pagina ${pagination.page} / ${pagination.total_pages}`;
+        }
+        document.body.dataset.currentPage = pagination.page;
+        document.body.dataset.totalPages = pagination.total_pages;
+        document.body.dataset.pageSize = pagination.per_page;
+      }
+
+      function renderPagination(pagination) {
+        if (!paginationList) return;
+        const items = [];
+
+        const renderPageItem = (label, targetPage, disabled, isActive = false) => {
+          const disabledClass = disabled ? " disabled" : "";
+          const activeClass = isActive ? " active" : "";
+          const ariaCurrent = isActive ? ' aria-current="page"' : "";
+          const content = label === "…" ? label : `<a class="page-link pagination-link" href="?page=${targetPage}" data-page="${targetPage}">${label}</a>`;
+          return `<li class="page-item${disabledClass}${activeClass}"${ariaCurrent}>${disabled ? `<span class="page-link">${label}</span>` : content}</li>`;
+        };
+
+        items.push(renderPageItem("Vorige", pagination.prev_page, !pagination.has_prev));
+        pagination.page_numbers.forEach(number => {
+          if (number === null || number === undefined) {
+            items.push(renderPageItem("…", pagination.page, true));
+          } else {
+            items.push(renderPageItem(String(number), number, false, number === pagination.page));
+          }
+        });
+        items.push(renderPageItem("Volgende", pagination.next_page, !pagination.has_next));
+        paginationList.innerHTML = items.join("");
+      }
+
+      function updateUrl(page) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("page", page);
+        history.pushState({ page }, "", url);
+      }
+
+      function goToPage(page, { updateHistory = true } = {}) {
+        const targetPage = Number(page);
+        if (!targetPage || targetPage === currentPage()) return;
+        document.body.dataset.currentPage = targetPage;
+        refreshDashboard(targetPage, { updateHistory });
+      }
+
+      if (paginationList) {
+        paginationList.addEventListener("click", (event) => {
+          const link = event.target.closest("[data-page]");
+          if (!link || link.closest(".disabled")) return;
+          event.preventDefault();
+          const targetPage = Number(link.dataset.page);
+          if (!targetPage) return;
+          goToPage(targetPage);
+        });
+      }
+
+      window.addEventListener("popstate", (event) => {
+        const pageFromState = event.state?.page;
+        const fallbackPage = Number(new URL(window.location.href).searchParams.get("page")) || 1;
+        const targetPage = pageFromState || fallbackPage;
+        document.body.dataset.currentPage = targetPage;
+        refreshDashboard(targetPage, { updateHistory: false });
+      });
+
+      async function refreshDashboard(page = currentPage(), { updateHistory = false } = {}) {
+        try {
+          const res = await fetch(`/api/alerts?page=${page}`);
+          if (!res.ok) return;
+          const data = await res.json();
+
+          document.getElementById("stat-total").textContent = data.stats.total;
+          document.getElementById("stat-critical").textContent = data.stats.critical;
+          document.getElementById("stat-high").textContent = data.stats.high;
+          document.getElementById("stat-mediumlow").textContent = data.stats.medium + data.stats.low;
+
+          updateTopList("top-signatures", data.stats.top_signatures, "bg-primary");
+          updateTopList("top-classifications", data.stats.top_classifications, "bg-success");
+          updateTopList("top-sources", data.stats.top_sources, "bg-secondary");
+          updateTopList("top-destinations", data.stats.top_destinations, "bg-info text-dark");
+          updateTopList("top-directories", data.stats.top_directories, "bg-light text-dark");
+          updateTopList("top-services", data.stats.top_services, "bg-dark");
+
+          const alertRows = data.alerts.map(alert => `
+            <tr data-risk="${alert.risk}">
+              <td>${new Date(alert.timestamp).toLocaleString("nl-NL")}</td>
+              <td>${createBadge(alert.risk)}</td>
+              <td>${alert.priority}</td>
+              <td>${alert.message}</td>
+              <td>${alert.classification}</td>
+              <td>${alert.src_ip || alert.src}</td>
+              <td>${alert.dst_ip || alert.dst}</td>
+              <td>${alert.protocol || ""}</td>
+              <td>${alert.service || alert.protocol || ""}</td>
+              <td><small class="text-secondary">${alert.source_dir || 'N/A'}</small></td>
+            </tr>
+          `).join("");
+
+          alertsBody.innerHTML = alertRows || '<tr><td colspan="10" class="text-center text-secondary">Geen alerts gevonden</td></tr>';
+          applyFilter();
+
+          if (data.pagination) {
+            updateRangeSummary(data.pagination);
+            renderPagination(data.pagination);
+            if (updateHistory) {
+              updateUrl(data.pagination.page);
+            }
+          }
+
+        } catch (error) {
+          console.error("Dashboard refresh mislukt", error);
+        }
+      }
+
+      setInterval(() => refreshDashboard(), 15000);
+    </script>
+  </body>
+</html>
+
